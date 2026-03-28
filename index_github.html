@@ -1,0 +1,2436 @@
+<!--
+Runware Living Histories Demo
+Author: Ally Nicoll
+
+This is a single-file demo application built as part of a Developer Advocate assessment.
+
+It demonstrates:
+- Prompt-based scene generation
+- Reference-based character consistency
+- Direct interaction with the Runware.ai imageInference API
+
+To use:
+1. Insert your Runware API key below
+2. Open this file in a browser
+3. Generate scenes using the interface
+
+Note:
+This is a lightweight demo intended for educational purposes, not production use.
+-->
+
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tuath AI · Runware Prototype</title>
+  <meta name="description" content="Prototype interface for scene generation and reference-guided character consistency using Runware API." />
+  <style>
+    :root{
+      --bg1:#f3e8ef;
+      --bg2:#e4e0f4;
+      --bg3:#dce8f8;
+      --card:rgba(255,255,255,0.42);
+      --card-strong:rgba(255,255,255,0.62);
+      --border:rgba(17,17,23,0.12);
+      --text:#17171f;
+      --muted:rgba(23,23,31,0.64);
+      --soft:rgba(23,23,31,0.45);
+      --dark:#15151b;
+      --danger:#9c2f2f;
+      --success:#1f6f47;
+      --shadow:0 18px 60px rgba(17,17,23,0.08);
+      --radius:28px;
+      --radius-sm:18px;
+    }
+
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; }
+    body{
+      min-height:100vh;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color:var(--text);
+      background: linear-gradient(135deg, var(--bg1) 0%, var(--bg2) 48%, var(--bg3) 100%);
+      position: relative;
+      overflow-x:hidden;
+    }
+
+    body::before{
+      content:"";
+      position:fixed;
+      inset:0;
+      background-image: url('/pattern.png');
+      background-repeat: repeat;
+      opacity: 0.09;
+      pointer-events:none;
+      z-index:0;
+    }
+
+    .page{
+      position:relative;
+      z-index:1;
+      max-width: 1380px;
+      margin: 0 auto;
+      padding: 34px 22px 70px;
+    }
+
+    .topbar{
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      gap:18px;
+      margin-bottom:30px;
+    }
+
+    .logo{
+      width:min(430px, 82vw);
+      height:auto;
+      display:block;
+      filter: drop-shadow(0 10px 18px rgba(0,0,0,0.04));
+    }
+
+    .eyebrow{
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      padding:8px 14px;
+      border-radius:999px;
+      background: rgba(255,255,255,0.38);
+      border:1px solid var(--border);
+      font-size:11px;
+      text-transform:uppercase;
+      letter-spacing:.2em;
+      color:var(--muted);
+      backdrop-filter: blur(8px);
+    }
+
+    .hero{
+      text-align:center;
+      max-width:920px;
+      margin:0 auto 28px;
+    }
+
+    .hero h1{
+      margin:0;
+      font-size: clamp(2.1rem, 5vw, 4rem);
+      line-height:1.02;
+      font-weight: 500;
+      letter-spacing: -0.03em;
+    }
+
+    .hero p{
+      margin:14px auto 0;
+      max-width:760px;
+      color:var(--muted);
+      font-size: clamp(1rem, 1.6vw, 1.14rem);
+      line-height:1.8;
+    }
+
+    .layout{
+      display:grid;
+      grid-template-columns: minmax(0, 1.18fr) minmax(330px, .82fr);
+      gap:22px;
+      align-items:start;
+    }
+
+    .panel{
+      background: var(--card);
+      border:1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(12px);
+    }
+
+    .panel-inner{
+      padding:24px;
+    }
+
+    .toolbar{
+      display:grid;
+      grid-template-columns: repeat(3,1fr);
+      gap:12px;
+      margin-bottom:18px;
+    }
+
+    .tab{
+      appearance:none;
+      border:1px solid var(--border);
+      background: rgba(255,255,255,0.56);
+      color:var(--text);
+      border-radius: 18px;
+      padding:14px 16px;
+      font-size:14px;
+      font-weight:600;
+      cursor:pointer;
+      transition:.18s ease;
+    }
+
+    .tab:hover{ background: rgba(255,255,255,0.78); }
+    .tab.active{
+      background:#111116;
+      color:white;
+      border-color:#111116;
+    }
+
+    .section-head{
+      display:flex;
+      align-items:flex-start;
+      justify-content:space-between;
+      gap:16px;
+      margin-bottom:18px;
+    }
+
+    .section-head h2,
+    .section-head h3{
+      margin:0;
+      font-size:1.18rem;
+      font-weight:650;
+      letter-spacing:-.02em;
+    }
+
+    .section-head p{
+      margin:6px 0 0;
+      color:var(--muted);
+      font-size:.95rem;
+      line-height:1.65;
+    }
+
+    .preset-strip{
+      border:1px solid rgba(17,17,23,0.1);
+      border-radius:24px;
+      background: rgba(255,255,255,0.5);
+      padding:18px;
+      margin-top:16px;
+    }
+
+    .preset-strip h3{
+      margin:0 0 6px;
+      font-size:1rem;
+      font-weight:650;
+      letter-spacing:-.02em;
+    }
+
+    .preset-strip p{
+      margin:0 0 14px;
+      color:var(--muted);
+      line-height:1.65;
+      font-size:.93rem;
+    }
+
+    .preset-group + .preset-group{
+      margin-top:14px;
+    }
+
+    .preset-label{
+      display:block;
+      margin:0 0 8px;
+      font-size:11px;
+      text-transform:uppercase;
+      letter-spacing:.18em;
+      color:var(--muted);
+      font-weight:700;
+    }
+
+    .preset-chips{
+      display:flex;
+      flex-wrap:wrap;
+      gap:10px;
+    }
+
+    .preset-btn{
+      appearance:none;
+      border:1px solid var(--border);
+      background: rgba(255,255,255,0.78);
+      color:var(--text);
+      border-radius:999px;
+      padding:10px 14px;
+      font:inherit;
+      font-size:.9rem;
+      line-height:1.3;
+      cursor:pointer;
+      transition:.18s ease;
+    }
+
+    .preset-btn:hover{
+      background:white;
+      transform: translateY(-1px);
+    }
+
+    .grid{
+      display:grid;
+      grid-template-columns: repeat(2,minmax(0,1fr));
+      gap:16px;
+    }
+
+    .full{ grid-column:1 / -1; }
+
+    label.field{
+      display:block;
+    }
+
+    .field-label{
+      display:block;
+      margin:0 0 8px;
+      font-size:11px;
+      text-transform:uppercase;
+      letter-spacing:.18em;
+      color:var(--muted);
+      font-weight:700;
+    }
+
+    select, textarea, input[type="text"], input[type="number"], input[type="password"]{
+      width:100%;
+      border:1px solid var(--border);
+      background: rgba(255,255,255,0.68);
+      color:var(--text);
+      border-radius: 18px;
+      padding:14px 15px;
+      font: inherit;
+      outline:none;
+      transition: border-color .15s ease, box-shadow .15s ease, background .15s ease;
+    }
+
+    textarea{
+      resize:vertical;
+      min-height:120px;
+      line-height:1.58;
+    }
+
+    select:focus, textarea:focus, input:focus{
+      border-color: rgba(17,17,23,0.28);
+      box-shadow: 0 0 0 4px rgba(17,17,23,0.05);
+      background: rgba(255,255,255,0.85);
+    }
+
+    .textarea-meta,
+    .helper-row{
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      gap:12px;
+      margin-top:8px;
+      color:var(--muted);
+      font-size:.84rem;
+      line-height:1.5;
+    }
+
+    .char-counter.over-limit{
+      color:var(--danger);
+      font-weight:600;
+    }
+
+    .toggle-row{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:18px;
+      border:1px solid var(--border);
+      background: rgba(255,255,255,0.68);
+      border-radius: 18px;
+      padding: 12px 14px;
+      min-height:52px;
+    }
+
+    .toggle-row span{
+      color:var(--muted);
+      font-size:.95rem;
+      line-height:1.4;
+    }
+
+    .switch{
+      position:relative;
+      width:54px;
+      height:31px;
+      border:none;
+      border-radius:999px;
+      cursor:pointer;
+      background:#111116;
+      flex:0 0 auto;
+      transition:.18s ease;
+    }
+
+    .switch.off{ background: rgba(17,17,23,0.22); }
+    .switch::after{
+      content:"";
+      position:absolute;
+      top:4px;
+      left:27px;
+      width:23px;
+      height:23px;
+      border-radius:50%;
+      background:white;
+      transition:.18s ease;
+      box-shadow:0 2px 8px rgba(0,0,0,.16);
+    }
+    .switch.off::after{ left:4px; }
+
+    .upload-zone{
+      margin-top:18px;
+      border:1px dashed rgba(17,17,23,0.18);
+      border-radius:24px;
+      background: rgba(255,255,255,0.34);
+      padding:18px;
+    }
+
+    .upload-top{
+      display:flex;
+      align-items:flex-start;
+      justify-content:space-between;
+      gap:14px;
+      margin-bottom:14px;
+    }
+
+    .upload-top p{
+      margin:6px 0 0;
+      color:var(--muted);
+      line-height:1.6;
+      font-size:.93rem;
+    }
+
+    .ghost-btn, .primary-btn, .small-btn{
+      appearance:none;
+      border:1px solid var(--border);
+      border-radius:18px;
+      cursor:pointer;
+      font:inherit;
+      transition:.18s ease;
+    }
+
+    .ghost-btn, .small-btn{
+      background: rgba(255,255,255,0.7);
+      color:var(--text);
+    }
+    .ghost-btn:hover, .small-btn:hover{ background: rgba(255,255,255,0.9); }
+
+    .ghost-btn{
+      padding:11px 15px;
+      font-size:.95rem;
+    }
+
+    .small-btn{
+      padding:9px 13px;
+      font-size:.88rem;
+    }
+
+    .primary-btn{
+      background: linear-gradient(135deg, #3a8f5a, #2f7d4f);
+      border-color:#2f7d4f;
+      color:white;
+      padding:14px 22px;
+      font-weight:650;
+      box-shadow: 0 10px 25px rgba(47,125,79,0.32);
+    }
+    .primary-btn:hover{
+      background: linear-gradient(135deg, #3f9960, #256a43);
+      border-color:#256a43;
+      transform: translateY(-1px);
+    }
+    .primary-btn:disabled,
+    .small-btn:disabled,
+    .ghost-btn:disabled{
+      opacity:.6;
+      cursor:not-allowed;
+      transform:none;
+    }
+
+    .ref-grid{
+      display:grid;
+      grid-template-columns: repeat(4,minmax(0,1fr));
+      gap:12px;
+      margin-top:12px;
+    }
+
+    .ref-box{
+      aspect-ratio:1 / 1;
+      border:1px solid var(--border);
+      border-radius:22px;
+      background: rgba(255,255,255,0.56);
+      padding:10px;
+    }
+
+    .ref-box-inner{
+      width:100%;
+      height:100%;
+      border:1px dashed rgba(17,17,23,0.18);
+      border-radius:16px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      text-align:center;
+      padding:10px;
+      color:var(--soft);
+      font-size:.9rem;
+      line-height:1.45;
+      background: rgba(230,229,240,0.35);
+      overflow:hidden;
+    }
+
+    .ref-box-inner img{
+      width:100%;
+      height:100%;
+      object-fit:cover;
+      border-radius:12px;
+      display:block;
+    }
+
+    .actions{
+      margin-top:22px;
+      display:flex;
+      align-items:center;
+      justify-content:flex-end;
+      gap:16px;
+      flex-wrap:wrap;
+    }
+
+    .tiny-note{
+      color:var(--muted);
+      line-height:1.7;
+      font-size:.93rem;
+      max-width:620px;
+    }
+
+    .dimension-picker{
+      display:grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap:0;
+      border:1px solid var(--border);
+      border-radius:22px;
+      overflow:hidden;
+      background: rgba(255,255,255,0.9);
+      margin-top:4px;
+    }
+
+    .ratio-btn{
+      appearance:none;
+      border:none;
+      border-right:1px solid rgba(17,17,23,0.08);
+      background: transparent;
+      color:var(--text);
+      cursor:pointer;
+      padding:12px 10px 10px;
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      justify-content:flex-start;
+      gap:8px;
+      min-height:112px;
+      transition:.18s ease;
+      position:relative;
+    }
+
+    .ratio-btn:last-child{
+      border-right:none;
+    }
+
+    .ratio-btn:hover{
+      background: rgba(17,17,23,0.04);
+    }
+
+    .ratio-btn.active{
+      background: rgba(17,17,23,0.08);
+    }
+
+    .ratio-shape-wrap{
+      height:28px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+    }
+
+    .ratio-shape{
+      display:block;
+      border:2px solid rgba(17,17,23,0.75);
+      border-radius:4px;
+      background: rgba(17,17,23,0.04);
+      flex:0 0 auto;
+    }
+
+    .ratio-label{
+      font-size:13px;
+      line-height:1;
+      font-weight:600;
+    }
+
+    .ratio-dims{
+      font-size:11px;
+      line-height:1.3;
+      color:var(--muted);
+      text-align:center;
+    }
+
+    .output-grid{
+      display:grid;
+      grid-template-columns: repeat(2,minmax(0,1fr));
+      gap:14px;
+      margin-top:18px;
+    }
+
+    .output-card{
+      border:1px solid var(--border);
+      border-radius:24px;
+      padding:12px;
+      background: rgba(255,255,255,.58);
+    }
+
+    .output-link{
+      display:block;
+      text-decoration:none;
+      color:inherit;
+    }
+
+
+
+    .label-with-tip{
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      flex-wrap:wrap;
+    }
+
+    .info-tip{
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      width:18px;
+      height:18px;
+      min-width:18px;
+      min-height:18px;
+      border-radius:50%;
+      border:1px solid rgba(17,17,23,0.16);
+      background: rgba(255,255,255,0.82);
+      color:var(--muted);
+      font-size:11px;
+      font-weight:700;
+      line-height:18px;
+      text-align:center;
+      cursor:pointer;
+      user-select:none;
+      vertical-align:middle;
+      margin-left:6px;
+      padding:0;
+      flex:0 0 18px;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    .info-tip.dark{
+      background: rgba(255,255,255,0.1);
+      border-color: rgba(255,255,255,0.16);
+      color: rgba(255,255,255,0.82);
+    }
+
+    .global-tooltip{
+      position: fixed;
+      max-width: min(320px, calc(100vw - 24px));
+      padding: 10px 12px;
+      border-radius: 12px;
+      background: rgba(17,17,23,0.96);
+      color: white;
+      font-size: 12px;
+      line-height: 1.5;
+      font-weight: 500;
+      box-shadow: 0 12px 30px rgba(0,0,0,0.22);
+      z-index: 10000;
+      pointer-events: none;
+      opacity: 0;
+      transform: translateY(4px);
+      transition: opacity .12s ease, transform .12s ease;
+    }
+
+    .global-tooltip.visible{
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    .preview-panel{
+      position:static;
+    }
+
+    .preview-panel .output-grid{
+      margin-top:12px;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .output-art{
+      aspect-ratio: var(--preview-ratio, 4 / 5);
+      width:100%;
+      min-height:0;
+    }
+
+    .output-art.loading{
+      position:relative;
+      overflow:hidden;
+      gap:10px;
+      flex-direction:column;
+    }
+
+    .spinner{
+      width:28px;
+      height:28px;
+      border-radius:50%;
+      border:3px solid rgba(17,17,23,0.16);
+      border-top-color: rgba(17,17,23,0.66);
+      animation: spin 0.85s linear infinite;
+      flex:0 0 auto;
+    }
+
+    @keyframes spin{
+      to{ transform: rotate(360deg); }
+    }
+    .output-art{
+      aspect-ratio: var(--preview-ratio, 4 / 5);
+      border-radius:18px;
+      border:1px dashed rgba(17,17,23,0.18);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      text-align:center;
+      padding:18px;
+      color:var(--soft);
+      line-height:1.6;
+      font-size:.95rem;
+      background:
+        linear-gradient(180deg, rgba(255,255,255,0.28), rgba(255,255,255,0.08)),
+        linear-gradient(135deg, #dfdceb, #d5ddec 60%, #d7e4f0);
+      overflow:hidden;
+      cursor:pointer;
+    }
+
+    .output-art img{
+      width:100%;
+      height:100%;
+      object-fit:cover;
+      border-radius:14px;
+      display:block;
+    }
+
+    .meta-row{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      margin-top:10px;
+      font-size:10px;
+      text-transform:uppercase;
+      letter-spacing:.18em;
+      color:var(--soft);
+      flex-wrap:wrap;
+    }
+
+    .side-stack{
+      display:flex;
+      flex-direction:column;
+      gap:18px;
+      position:sticky;
+      top:22px;
+      align-self:start;
+    }
+
+    .mini-list{
+      display:grid;
+      gap:10px;
+      margin-top:14px;
+    }
+
+    .mini-item{
+      border:1px solid rgba(17,17,23,0.1);
+      border-radius:18px;
+      background: rgba(255,255,255,0.56);
+      padding:12px 14px;
+      font-size:.95rem;
+      color:var(--muted);
+      line-height:1.55;
+    }
+
+    .status-box{
+      min-height:180px;
+    }
+
+    .status-log{
+      display:grid;
+      gap:10px;
+      max-height:300px;
+      overflow:auto;
+      padding-right:4px;
+    }
+
+    .status-entry{
+      border:1px solid rgba(17,17,23,0.1);
+      border-radius:18px;
+      background: rgba(255,255,255,0.56);
+      padding:12px 14px;
+      line-height:1.55;
+      font-size:.93rem;
+      color:var(--muted);
+      white-space:pre-wrap;
+      word-break:break-word;
+    }
+
+    .status-entry.success{
+      color:var(--success);
+      font-weight:600;
+    }
+
+    .status-entry.error{
+      color:var(--danger);
+      font-weight:600;
+    }
+
+    .status-timestamp{
+      display:block;
+      font-size:10px;
+      text-transform:uppercase;
+      letter-spacing:.18em;
+      margin-bottom:6px;
+      opacity:.72;
+    }
+
+    .status-actions{
+      display:flex;
+      align-items:center;
+      gap:10px;
+      flex-wrap:wrap;
+    }
+
+    .code-panel{
+      overflow: visible;
+      background:var(--dark);
+      color:white;
+      border-radius:var(--radius);
+      border:1px solid rgba(17,17,23,0.15);
+      box-shadow: var(--shadow);
+      overflow:hidden;
+    }
+
+    .code-head{
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      gap:14px;
+      padding:18px 20px 0;
+    }
+
+    .code-head h3{
+      margin:0;
+      font-size:1.04rem;
+      font-weight:650;
+    }
+
+    .code-head-actions{
+      display:flex;
+      align-items:center;
+      gap:10px;
+      flex-wrap:wrap;
+    }
+
+    .code-pill{
+      padding:7px 10px;
+      border-radius:999px;
+      border:1px solid rgba(255,255,255,0.14);
+      font-size:10px;
+      text-transform:uppercase;
+      letter-spacing:.2em;
+      color:rgba(255,255,255,0.64);
+      white-space:nowrap;
+    }
+
+    .copy-btn-dark{
+      appearance:none;
+      border:1px solid rgba(255,255,255,0.14);
+      background: rgba(255,255,255,0.08);
+      color:white;
+      border-radius:999px;
+      padding:7px 12px;
+      font-size:11px;
+      text-transform:uppercase;
+      letter-spacing:.16em;
+      cursor:pointer;
+      transition:.18s ease;
+    }
+
+    .copy-btn-dark:hover{
+      background: rgba(255,255,255,0.14);
+    }
+
+    pre{
+      margin:14px 18px 18px;
+      padding:16px;
+      border-radius:18px;
+      background: rgba(0,0,0,0.18);
+      overflow:auto;
+      font-size:12px;
+      line-height:1.7;
+      color:rgba(255,255,255,0.84);
+      max-height:360px;
+    }
+
+    .history-view{
+      display:none;
+    }
+
+    .history-view.active{
+      display:block;
+    }
+
+    .control-view.hidden{
+      display:none;
+    }
+
+    .history-list{
+      display:grid;
+      gap:16px;
+      margin-top:18px;
+    }
+
+    .history-empty{
+      border:1px dashed rgba(17,17,23,0.18);
+      border-radius:24px;
+      padding:26px 20px;
+      background: rgba(255,255,255,0.34);
+      color:var(--muted);
+      text-align:center;
+      line-height:1.7;
+    }
+
+    .history-card{
+      border:1px solid rgba(17,17,23,0.1);
+      border-radius:24px;
+      background: rgba(255,255,255,0.56);
+      overflow:hidden;
+    }
+
+    .history-card-inner{
+      padding:18px;
+    }
+
+    .history-layout{
+      display:grid;
+      grid-template-columns: minmax(260px, .72fr) minmax(0, 1.28fr);
+      gap:18px;
+      align-items:start;
+    }
+
+    .history-gallery{
+      display:grid;
+      gap:12px;
+    }
+
+    .history-image-grid{
+      display:grid;
+      grid-template-columns: repeat(2, minmax(0,1fr));
+      gap:10px;
+    }
+
+    .history-image-link{
+      display:block;
+      text-decoration:none;
+    }
+
+    .history-image{
+      aspect-ratio: 4 / 5;
+      border-radius:18px;
+      overflow:hidden;
+      border:1px solid rgba(17,17,23,0.1);
+      background: rgba(255,255,255,0.65);
+    }
+
+    .history-image img{
+      width:100%;
+      height:100%;
+      object-fit:cover;
+      display:block;
+    }
+
+    .history-placeholder{
+      aspect-ratio:4 / 5;
+      border-radius:18px;
+      border:1px dashed rgba(17,17,23,0.18);
+      background: rgba(255,255,255,0.5);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      text-align:center;
+      padding:16px;
+      color:var(--muted);
+      line-height:1.6;
+      font-size:.92rem;
+    }
+
+    .history-settings{
+      display:grid;
+      grid-template-columns: repeat(2, minmax(0,1fr));
+      gap:10px;
+      margin-top:12px;
+    }
+
+    .history-setting{
+      border:1px solid rgba(17,17,23,0.08);
+      border-radius:16px;
+      padding:10px 12px;
+      background: rgba(255,255,255,0.54);
+    }
+
+    .history-setting-label{
+      font-size:10px;
+      text-transform:uppercase;
+      letter-spacing:.18em;
+      color:var(--soft);
+      margin-bottom:6px;
+    }
+
+    .history-setting-value{
+      font-size:.92rem;
+      color:var(--text);
+      line-height:1.5;
+      word-break:break-word;
+    }
+
+    .history-text-block{
+      border:1px solid rgba(17,17,23,0.08);
+      border-radius:16px;
+      padding:12px 14px;
+      background: rgba(255,255,255,0.54);
+      margin-top:12px;
+    }
+
+    .history-text-block .history-setting-label{
+      margin-bottom:8px;
+    }
+
+    .history-text-block p{
+      margin:0;
+      color:var(--muted);
+      line-height:1.65;
+      font-size:.93rem;
+      white-space:pre-wrap;
+    }
+
+    .history-links{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      flex-wrap:wrap;
+      margin:14px 0 0;
+    }
+
+    .history-links a{
+      color:var(--text);
+      font-weight:600;
+      text-decoration:none;
+    }
+
+    .history-links a:hover{
+      text-decoration:underline;
+    }
+
+    .history-json{
+      margin:0;
+      max-height:320px;
+      background: rgba(17,17,23,0.9);
+      color:rgba(255,255,255,0.88);
+      border-radius:18px;
+      padding:16px;
+      overflow:auto;
+      font-size:12px;
+      line-height:1.7;
+    }
+
+    .hidden{ display:none !important; }
+
+    @media (max-width: 1080px){
+      .layout{ grid-template-columns: 1fr; }
+      .history-layout{ grid-template-columns: 1fr; }
+      .side-stack{
+        position:static;
+      }
+    }
+
+    @media (max-width: 1400px){
+      .preview-panel .output-grid{
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 900px){
+      .dimension-picker{
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+      .ratio-btn:nth-child(3){
+        border-right:none;
+      }
+      .ratio-btn:nth-child(-n+3){
+        border-bottom:1px solid rgba(17,17,23,0.08);
+      }
+      .history-settings{
+        grid-template-columns: repeat(2, minmax(0,1fr));
+      }
+    }
+
+    @media (max-width: 700px){
+      .page{ padding:22px 14px 50px; }
+      .panel-inner{ padding:18px; }
+      .grid{ grid-template-columns:1fr; }
+      .ref-grid{ grid-template-columns: repeat(2,minmax(0,1fr)); }
+      .output-grid{ grid-template-columns:1fr; }
+      .toolbar{ grid-template-columns:1fr; }
+      .dimension-picker{
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+      .ratio-btn{
+        border-right:1px solid rgba(17,17,23,0.08);
+        border-bottom:1px solid rgba(17,17,23,0.08);
+      }
+      .ratio-btn:nth-child(2n){
+        border-right:none;
+      }
+      .ratio-btn:last-child{
+        border-bottom:none;
+      }
+      .history-settings,
+      .history-image-grid{
+        grid-template-columns: 1fr;
+      }
+      .section-head,
+      .upload-top,
+      .actions,
+      .helper-row,
+      .textarea-meta{
+        flex-direction:column;
+        align-items:flex-start;
+      }
+    }
+
+    .code-head h3,
+    .section-head h2,
+    .section-head h3,
+    .field-label-with-tip{
+      display:flex;
+      align-items:center;
+      gap:0;
+      flex-wrap:wrap;
+    }
+
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="topbar">
+      <img class="logo" src="/tuath_ai_transparent.svg" alt="Tuath AI logo" />
+      <div class="eyebrow">Tuath AI · Runware · Prototype</div>
+    </div>
+
+    <section class="hero">
+      <h1>Living Histories</h1>
+      <p>
+        An example interface for scene generation and reference-guided character consistency.
+      </p>
+    </section>
+
+    <div class="layout">
+      <main>
+        <div class="panel panel-inner">
+          <div class="toolbar">
+            <button class="tab active" id="tabPrompt" type="button">Prompt Mode</button>
+            <button class="tab" id="tabReference" type="button">Reference Mode</button>
+            <button class="tab" id="tabHistory" type="button">API Call Detail</button>
+          </div>
+
+          <div id="controlView" class="control-view">
+            <div class="section-head">
+              <div>
+                <h2>Generation Controls</h2>
+                <p>Build a scene, a character pass, or a visitor-inserted living history image using visual Generative AI, powered by Runware.</p>
+              </div>
+            </div>
+
+            <div class="grid">
+              <label class="field">
+                <span class="field-label">Model <span class="info-tip" data-tooltip="Choose which Seedream model will generate the image. Different models may vary in style, speed, and the image sizes they support." role="button" tabindex="0" aria-label="Show help">i</span></span>
+                <select id="modelSelect">
+                  <option value="bytedance:seedream@5.0-lite">Seedream 5.0 Lite</option>
+                  <option value="bytedance:seedream@4.5" selected>Seedream 4.5</option>
+                </select>
+              </label>
+
+              <label class="field">
+                <span class="field-label"># of image outputs</span>
+                <select id="outputCount">
+                  <option value="1">1</option>
+                  <option value="2" selected>2</option>
+                  <option value="3">3</option>
+                  <option value="4">4</option>
+                </select>
+              </label>
+
+              <label class="field">
+                <span class="field-label">Resolution <span class="info-tip" data-tooltip="This controls how large the generated image will be. Higher resolutions usually give more detail, but can take longer and use more resources." role="button" tabindex="0" aria-label="Show help">i</span></span>
+                <select id="qualityTier"></select>
+              </label>
+
+              <label class="field full">
+                <span class="field-label">Dimensions</span>
+                <div class="dimension-picker" id="dimensionPicker"></div>
+                <select id="dimensionSelect" class="hidden"></select>
+              </label>
+
+              <label class="field full">
+                <span class="field-label">Historical scene or character brief <span class="info-tip" data-tooltip="This is the main prompt. Describe the scene, subject, mood, materials, and anything important you want the image output to include." role="button" tabindex="0" aria-label="Show help">i</span></span>
+                <textarea id="characterConcept" maxlength="2000">A gathering at a stone circle on a windswept moor in ancient Scotland, tall standing stones, robed figures in simple woven wool and linen garments standing solemnly, human ritual, offerings of grain and carved wooden bowls placed at the base of the stones, low clouds racing overhead, golden evening light breaking through, peat ground underfoot, distant hills fading into mist, historically grounded, realistic textures, cinematic composition, high detail, natural lighting</textarea>
+                <div class="textarea-meta">
+                  <span></span>
+                  <span class="char-counter" id="charCounter">0 / 2000</span>
+                </div>
+              </label>
+
+              <label class="field full">
+                <span class="field-label" id="variationLabel">Scene continuity notes <span class="info-tip" data-tooltip="Use this field to explain what should stay consistent between images, such as the same person, costume logic, historical tone, or exhibit-safe constraints." role="button" tabindex="0" aria-label="Show help">i</span></span>
+                <textarea id="variationNotes">Avoid fantasy tropes, polished modern props, and anachronistic details.</textarea>
+                <div class="tiny-note"></div>
+              </label>
+            </div>
+
+            <div class="preset-strip">
+              <h3>Exhibit Presets</h3>
+              <p>Pick a scene starter or recipe.</p>
+
+              <div class="preset-group">
+                <span class="preset-label">Historically Grounded Scene Examples</span>
+                <div class="preset-chips" id="scenePresetButtons"></div>
+              </div>
+
+              <div class="preset-group">
+                <span class="preset-label">Consistency Recipes</span>
+                <div class="preset-chips" id="consistencyPresetButtons"></div>
+              </div>
+            </div>
+
+            <div class="grid" style="margin-top:16px;">
+              <label class="field">
+                <span class="field-label">Seed <span class="info-tip" data-tooltip="A seed is a pseudo-random number used to initialize the generation of random noise, from which the final image is built. Think of it as the starting point for the AI's creative process. If you use the exact same prompt, model, and settings with the same seed, you can recreate a specific image" role="button" tabindex="0" aria-label="Show help">i</span></span>
+                <input id="seedInput" type="number" value="123456" />
+              </label>
+
+              <label class="field">
+                <span class="field-label">Reuse seed</span>
+                <div class="toggle-row">
+                  <span>Keep seed fixed between variations</span>
+                  <button id="seedToggle" class="switch off" type="button" aria-pressed="false" title="Reuse seed"></button>
+                </div>
+              </label>
+            </div>
+
+            <div class="upload-zone hidden" id="referencePanel">
+              <div class="upload-top">
+                <div>
+                  <strong>Reference Images</strong>
+                  <p>Provide up to four images. This could be a visitor portrait, a costume reference, or objects you wish to include in the final output. These are sent first with <code>imageUpload</code>, then their returned UUIDs are passed into <code>referenceImages</code>.</p>
+                </div>
+                <div>
+                  <input id="referenceUpload" type="file" accept="image/*" multiple class="hidden" />
+                  <button class="ghost-btn" id="uploadButton" type="button">Upload Images</button>
+                </div>
+              </div>
+
+              <div class="ref-grid" id="refGrid">
+                <div class="ref-box"><div class="ref-box-inner" id="refSlot1">Reference 1</div></div>
+                <div class="ref-box"><div class="ref-box-inner" id="refSlot2">Reference 2</div></div>
+                <div class="ref-box"><div class="ref-box-inner" id="refSlot3">Reference 3</div></div>
+                <div class="ref-box"><div class="ref-box-inner" id="refSlot4">Reference 4</div></div>
+              </div>
+            </div>
+
+            <div class="actions">
+              <div style="display:flex; gap:10px; flex-wrap:wrap;">
+                <button class="small-btn" id="randomSeed" type="button">Randomize Seed</button>
+                <button class="primary-btn" id="generateBtn" type="button">Generate Scene</button>
+              </div>
+            </div>
+          </div>
+
+          <div id="historyView" class="history-view">
+            <div class="section-head">
+              <div>
+                <h2>API Call Detail</h2>
+                <p>Session-only records showing the returned image, the settings used, and the exact Runware payload behind each generation.</p>
+              </div>
+            </div>
+            <div id="historyList" class="history-list"></div>
+          </div>
+        </div>
+
+      </main>
+
+      <aside class="side-stack">
+        <div class="panel panel-inner preview-panel" id="outputPreviewPanel">
+          <div class="section-head">
+            <div>
+              <h3>Output Preview</h3>
+              <p>Live results returned by Runware.</p>
+            </div>
+            <button class="small-btn" id="downloadMeta" type="button">Download Metadata <span class="info-tip" data-tooltip="Download a JSON file containing the current settings, request preview, last response, and session history. This makes it easier to inspect or share how this demo works." role="button" tabindex="0" aria-label="Show help">i</span></button>
+          </div>
+
+          <div class="output-grid" id="outputGrid"></div>
+        </div>
+<div class="code-panel">
+          <div class="code-head">
+            <h3>API Request <span class="info-tip dark" data-tooltip="This shows the exact request the app sent to Runware's API. It helps explain how the interface maps your chosen settings into a real API call." role="button" tabindex="0" aria-label="Show help">i</span></h3>
+            <div class="code-head-actions">
+              <button class="copy-btn-dark" id="copyRequestBtn" type="button">Copy</button>
+            </div>
+          </div>
+          <pre id="requestBox"></pre>
+        </div>
+
+        <div class="code-panel">
+          <div class="code-head">
+            <h3>API Response <span class="info-tip dark" data-tooltip="This shows the raw data returned by Runware's API after a request is successfully made. It helps explain what the API gives back, including generated image URLs and any errors returned during generation." role="button" tabindex="0" aria-label="Show help">i</span></h3>
+            <div class="code-head-actions">
+              <button class="copy-btn-dark" id="copyResponseBtn" type="button">Copy</button>
+              <div class="code-pill">Live Data</div>
+            </div>
+          </div>
+          <pre id="responseBox"></pre>
+        </div>
+      </aside>
+    </div>
+  </div>
+
+  <script>
+    // 🔑 Insert your Runware API key here
+    // You can get one from https://runware.ai/
+    const RUNWARE_API_URL = 'https://api.runware.ai/v1';
+    const RUNWARE_API_KEY = 'YOUR_RUNWARE_API_KEY_HERE';
+
+    const MODEL_DIMENSIONS = {
+      'bytedance:seedream@4.5': {
+        label: 'Seedream 4.5',
+        tiers: {
+          '2k': [
+            { value: '2560x1440', label: '16:9', dims: '2560×1440', ratio: 16 / 9 },
+            { value: '2304x1728', label: '4:3', dims: '2304×1728', ratio: 4 / 3 },
+            { value: '2048x2048', label: '1:1', dims: '2048×2048', ratio: 1 },
+            { value: '1728x2304', label: '3:4', dims: '1728×2304', ratio: 3 / 4 },
+            { value: '1440x2560', label: '9:16', dims: '1440×2560', ratio: 9 / 16 }
+          ],
+          '4k': [
+            { value: '5120x2880', label: '16:9', dims: '5120×2880', ratio: 16 / 9 },
+            { value: '4608x3456', label: '4:3', dims: '4608×3456', ratio: 4 / 3 },
+            { value: '4096x4096', label: '1:1', dims: '4096×4096', ratio: 1 },
+            { value: '3456x4608', label: '3:4', dims: '3456×4608', ratio: 3 / 4 },
+            { value: '2880x5120', label: '9:16', dims: '2880×5120', ratio: 9 / 16 }
+          ]
+        }
+      },
+      'bytedance:seedream@5.0-lite': {
+        label: 'Seedream 5.0 Lite',
+        tiers: {
+          '2k': [
+            { value: '2848x1600', label: '16:9', dims: '2848×1600', ratio: 16 / 9 },
+            { value: '2304x1728', label: '4:3', dims: '2304×1728', ratio: 4 / 3 },
+            { value: '2048x2048', label: '1:1', dims: '2048×2048', ratio: 1 },
+            { value: '1728x2304', label: '3:4', dims: '1728×2304', ratio: 3 / 4 },
+            { value: '1600x2848', label: '9:16', dims: '1600×2848', ratio: 9 / 16 }
+          ],
+          '3k': [
+            { value: '4096x2304', label: '16:9', dims: '4096×2304', ratio: 16 / 9 },
+            { value: '3456x2592', label: '4:3', dims: '3456×2592', ratio: 4 / 3 },
+            { value: '3072x3072', label: '1:1', dims: '3072×3072', ratio: 1 },
+            { value: '2592x3456', label: '3:4', dims: '2592×3456', ratio: 3 / 4 },
+            { value: '2304x4096', label: '9:16', dims: '2304×4096', ratio: 9 / 16 }
+          ]
+        }
+      }
+    };
+
+    const SCENE_PRESETS = [
+      {
+        label: 'Mesolithic Coastal Camp (c. 6000 BCE)',
+        concept: 'A windswept coastal inlet in what is now western Scotland, early morning mist rolling in from the cold Atlantic, a small group of Mesolithic hunter-gatherers gathered around a low fire near a shell midden, their clothing made from stitched deer hides and furs, simple bone tools and flint blades laid out on flat stones, a woman scraping a seal skin while another tends smoking fish racks, children collecting driftwood along the shore, hazel trees and birch woodland behind them, subdued natural color palette, damp air visible in the light, ultra-realistic, archaeological accuracy, cinematic wide shot, soft overcast lighting, 35mm lens',
+        notes: 'Keep construction materials practical and period-appropriate.'
+      },
+      {
+        label: 'Bronze Age Settlement (c. 1500 BCE)',
+        concept: 'A small Bronze Age farming settlement in Scotland, roundhouses with thatched roofs and wattle-and-daub walls clustered together, smoke rising from central hearths, people wearing simple wool tunics and cloaks, a man casting molten bronze into a stone mold while others grind grain with quern stones, cattle and sheep penned nearby, muddy earth pathways, tools made of bronze and bone, muted earthy tones, realistic materials, late afternoon light, documentary-style realism',
+        notes: 'Emphasize lived-in domestic realism, weathered wood, damp atmosphere, and believable subsistence details.'
+      },
+      {
+        label: 'Iron Age Hillfort Life (c. 500 BCE)',
+        concept: 'A fortified hilltop settlement in Iron Age Scotland, wooden palisade walls encircling roundhouses, warriors and villagers moving through daily life, shields made of wood and leather, spears stacked near an entrance gate, women weaving on upright looms inside a dimly lit roundhouse, smoke filtering through a thatched roof, rugged terrain stretching into the distance, windswept grass, overcast sky, grounded historical detail, cinematic realism',
+        notes: 'Keep scale impressive but believable. Focus on stonework, clothing texture, and environmental realism.'
+      },
+      {
+        label: 'Pictish Carving Scene (c. 700 CE)',
+        concept: 'A Pictish stone carver at work beside a partially completed standing stone, intricate symbols being carefully chiseled into the surface, the craftsman wearing a wool tunic and cloak fastened with a simple brooch, iron tools laid nearby, a small settlement and grazing land in the background, cool northern light, lichen-covered stones, hyper-detailed textures, historically accurate setting, shallow depth of field',
+        notes: ''
+      },
+      {
+        label: 'Pictish Noble Household (c. 800 CE)',
+        concept: 'Interior of a high-status Pictish wooden hall, long firepit running through the center, smoke drifting upward, a noble family seated at a wooden table eating from simple pottery and wooden dishes, textiles hanging along the walls, cloaks dyed with natural pigments, metal brooches and torcs visible, servants moving in the background, warm firelight contrasting with cold daylight entering through the doorway, realistic materials, cinematic interior lighting',
+        notes: 'Prioritize environmental storytelling and everyday life. Keep architecture, clothing, and tools simple and plausible.'
+      },
+      {
+        label: 'Early Christian Monastery – Iona (c. 800 CE)',
+        concept: 'A large early medieval monastery building on a remote Scottish island, monks in simple undyed wool habits, the sea visible beyond, seabirds circling overhead, austere and peaceful atmosphere, historically accurate details, soft natural lighting, high realism',
+        notes: ''
+      }
+    ];
+
+    const CONSISTENCY_PRESETS = [
+      {
+        label: 'Visitor Insert',
+        notes: 'Use the uploaded portrait as the focal point of the image, head and shoulder portrait. Preserve face shape, hairline, eye spacing, and identifiable features while integrating them into the historical setting with era-appropriate costume and lighting.'
+      },
+      {
+        label: 'Same Character, New Scene',
+        notes: 'Keep the same person consistent across multiple scenes. Maintain facial identity, age, build, hairstyle, and costume silhouette even when background, camera angle, and action change.'
+      },
+      {
+        label: 'Museum-safe Realism',
+        notes: 'Aim for reconstruction realism suitable for an educational exhibit. Avoid fantasy stylization, glossy fashion photography tropes, modern makeup looks, and anachronistic materials.'
+      },
+      {
+        label: 'Character Turnaround',
+        notes: 'Use the uploaded portrait in combination with the prompt to make a character turnaround sheet, showcasing multiple angles of the character. Keep the same identity, nose shape, jawline, brow structure, and outfit silhouette across outputs.'
+      }
+    ];
+
+    const tabPrompt = document.getElementById('tabPrompt');
+    const tabReference = document.getElementById('tabReference');
+    const tabHistory = document.getElementById('tabHistory');
+    const controlView = document.getElementById('controlView');
+    const historyView = document.getElementById('historyView');
+    const historyList = document.getElementById('historyList');
+    const referencePanel = document.getElementById('referencePanel');
+    const variationLabel = document.getElementById('variationLabel');
+    const variationNotes = document.getElementById('variationNotes');
+    const modelSelect = document.getElementById('modelSelect');
+    const outputCount = document.getElementById('outputCount');
+    const qualityTier = document.getElementById('qualityTier');
+    const dimensionSelect = document.getElementById('dimensionSelect');
+    const dimensionPicker = document.getElementById('dimensionPicker');
+    const characterConcept = document.getElementById('characterConcept');
+    const charCounter = document.getElementById('charCounter');
+    const seedInput = document.getElementById('seedInput');
+    const requestBox = document.getElementById('requestBox');
+    const responseBox = document.getElementById('responseBox');
+    const outputGrid = document.getElementById('outputGrid');
+    const outputPreviewPanel = document.getElementById('outputPreviewPanel');
+    const randomSeed = document.getElementById('randomSeed');
+    const generateBtn = document.getElementById('generateBtn');
+    const seedToggle = document.getElementById('seedToggle');
+    const referenceUpload = document.getElementById('referenceUpload');
+    const uploadButton = document.getElementById('uploadButton');
+    const downloadMeta = document.getElementById('downloadMeta');
+    const statusLog = document.getElementById('statusLog');
+    const copyStatusBtn = document.getElementById('copyStatusBtn');
+    const clearStatusBtn = document.getElementById('clearStatusBtn');
+    const copyRequestBtn = document.getElementById('copyRequestBtn');
+    const copyResponseBtn = document.getElementById('copyResponseBtn');
+    const scenePresetButtons = document.getElementById('scenePresetButtons');
+    const consistencyPresetButtons = document.getElementById('consistencyPresetButtons');
+
+    let mode = 'prompt';
+    let activeTab = 'prompt';
+    let reuseSeed = false;
+    let uploadedFiles = [];
+    let lastResponsePayload = { status: 'idle', message: 'No request sent...' };
+    let lastGeneratedImages = [];
+    let generationHistory = [];
+    let isGenerating = false;
+
+    function createUUID() {
+      if (window.crypto && crypto.randomUUID) return crypto.randomUUID();
+      return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+        const r = Math.random() * 16 | 0;
+        const v = c === 'x' ? r : (r & 0x3 | 0x8);
+        return v.toString(16);
+      });
+    }
+
+    function getTimestamp() {
+      const now = new Date();
+      return now.toLocaleTimeString([], {
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit'
+      });
+    }
+
+    function getDateTimeStamp() {
+      const now = new Date();
+      return now.toLocaleString([], {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit'
+      });
+    }
+
+    function pushStatus(message, type = '') {
+      if (!statusLog) return;
+      const entry = document.createElement('div');
+      entry.className = 'status-entry' + (type ? ' ' + type : '');
+
+      const timestamp = document.createElement('span');
+      timestamp.className = 'status-timestamp';
+      timestamp.textContent = getTimestamp();
+
+      const text = document.createElement('div');
+      text.textContent = message;
+
+      entry.appendChild(timestamp);
+      entry.appendChild(text);
+      statusLog.appendChild(entry);
+      statusLog.scrollTop = statusLog.scrollHeight;
+    }
+
+    function clearStatusLog() {
+      if (!statusLog) return;
+      statusLog.innerHTML = '';
+    }
+
+    function sanitizePayload(payload) {
+      return JSON.stringify(payload, null, 2);
+    }
+
+    function parseDimension(value) {
+      const [width, height] = value.split('x').map(Number);
+      return { width, height };
+    }
+
+    function currentDimension() {
+      return parseDimension(dimensionSelect.value);
+    }
+
+    function getCurrentDimensionOptions() {
+      const modelConfig = MODEL_DIMENSIONS[modelSelect.value];
+      return modelConfig.tiers[qualityTier.value] || [];
+    }
+
+    function getCurrentDimensionMeta() {
+      return getCurrentDimensionOptions().find(dim => dim.value === dimensionSelect.value) || null;
+    }
+
+    function populateQualityTiers() {
+      const modelConfig = MODEL_DIMENSIONS[modelSelect.value];
+      const current = qualityTier.value;
+      qualityTier.innerHTML = '';
+      Object.keys(modelConfig.tiers).forEach((tierKey, index) => {
+        const option = document.createElement('option');
+        option.value = tierKey;
+        option.textContent = tierKey.toUpperCase();
+        if ((current && current === tierKey) || (!current && index === 0)) {
+          option.selected = true;
+        }
+        qualityTier.appendChild(option);
+      });
+    }
+
+    function renderDimensionPicker() {
+      const dims = getCurrentDimensionOptions();
+      const defaultDim = dims.find(dim => dim.label === '3:4');
+      const current = dimensionSelect.value && dims.some(dim => dim.value === dimensionSelect.value)
+        ? dimensionSelect.value
+        : (defaultDim?.value || dims[0]?.value || '');
+
+      dimensionSelect.innerHTML = '';
+      dimensionPicker.innerHTML = '';
+
+      dims.forEach((dim, index) => {
+        const option = document.createElement('option');
+        option.value = dim.value;
+        option.textContent = `${dim.label} ${dim.dims}`;
+        if (dim.value === current || (!current && index === 0)) {
+          option.selected = true;
+        }
+        dimensionSelect.appendChild(option);
+      });
+
+      if (!dimensionSelect.value && dims.length) {
+        const defaultDim = dims.find(d => d.label === '3:4');
+        dimensionSelect.value = defaultDim ? defaultDim.value : dims[0].value;
+      }
+
+      dims.forEach(dim => {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'ratio-btn' + (dim.value === dimensionSelect.value ? ' active' : '');
+        button.dataset.value = dim.value;
+
+        const shapeWrap = document.createElement('div');
+        shapeWrap.className = 'ratio-shape-wrap';
+
+        const shape = document.createElement('span');
+        shape.className = 'ratio-shape';
+
+        const maxWide = 36;
+        const maxTall = 22;
+        let width;
+        let height;
+
+        if (dim.ratio >= 1) {
+          width = maxWide;
+          height = Math.max(10, Math.round(maxWide / dim.ratio));
+        } else {
+          height = maxTall;
+          width = Math.max(10, Math.round(maxTall * dim.ratio));
+        }
+
+        shape.style.width = width + 'px';
+        shape.style.height = height + 'px';
+
+        const label = document.createElement('div');
+        label.className = 'ratio-label';
+        label.textContent = dim.label;
+
+        const dimsText = document.createElement('div');
+        dimsText.className = 'ratio-dims';
+        dimsText.textContent = dim.dims;
+
+        shapeWrap.appendChild(shape);
+        button.appendChild(shapeWrap);
+        button.appendChild(label);
+        button.appendChild(dimsText);
+
+        button.addEventListener('click', () => {
+          dimensionSelect.value = dim.value;
+          renderDimensionPicker();
+          renderDebug();
+          renderOutputs(lastGeneratedImages);
+        });
+
+        dimensionPicker.appendChild(button);
+      });
+    }
+
+    function updateCharacterCounter() {
+      const length = characterConcept.value.length;
+      charCounter.textContent = `${length} / 2000`;
+      charCounter.classList.toggle('over-limit', length > 2000);
+    }
+
+    function buildPositivePrompt() {
+      const concept = characterConcept.value.trim();
+      const notes = variationNotes.value.trim();
+      return notes ? `${concept}\n\n${notes}` : concept;
+    }
+
+    function getSeedForIndex(index) {
+      const baseSeed = Number(seedInput.value || 0);
+      return reuseSeed ? baseSeed : (baseSeed + index);
+    }
+
+    function getInferenceTasks(referenceImageUUIDs = []) {
+      const { width, height } = currentDimension();
+      const count = Number(outputCount.value || 1);
+      const tasks = [];
+
+      for (let i = 0; i < count; i++) {
+        const task = {
+          taskType: 'imageInference',
+          taskUUID: createUUID(),
+          model: modelSelect.value,
+          positivePrompt: buildPositivePrompt(),
+          width,
+          height,
+          seed: getSeedForIndex(i)
+        };
+
+        if (mode === 'reference' && referenceImageUUIDs.length) {
+          task.referenceImages = referenceImageUUIDs;
+        }
+
+        tasks.push(task);
+      }
+
+      return tasks;
+    }
+
+    function getSanitizedRequestPreview() {
+      const payload = [];
+      if (mode === 'reference' && uploadedFiles.length) {
+        uploadedFiles.forEach((file, index) => {
+          payload.push({
+            taskType: 'imageUpload',
+            taskUUID: `upload-${index + 1}`,
+            image: `[base64 ${file.name}]`
+          });
+        });
+      }
+
+      const inferenceTasks = getInferenceTasks(
+        mode === 'reference' && uploadedFiles.length
+          ? uploadedFiles.map((_, index) => `uploaded-image-uuid-${index + 1}`)
+          : []
+      ).map(task => ({
+        ...task,
+        positivePrompt: `${task.positivePrompt.slice(0, 400)}${task.positivePrompt.length > 400 ? '\n…' : ''}`
+      }));
+
+      payload.push(...inferenceTasks);
+      return payload;
+    }
+
+    function renderDebug() {
+      requestBox.textContent = sanitizePayload(getSanitizedRequestPreview());
+      responseBox.textContent = sanitizePayload(lastResponsePayload);
+    }
+
+    function getPreviewAspectRatio() {
+      const meta = getCurrentDimensionMeta();
+      if (meta && meta.ratio) return meta.ratio;
+      return height ? width / height : (4 / 5);
+    }
+
+    function buildPlaceholderCard(seed, width, height) {
+      const card = document.createElement('div');
+      card.className = 'output-card';
+
+      const art = document.createElement('div');
+      art.className = 'output-art';
+      art.style.setProperty('--preview-ratio', String(getPreviewAspectRatio()));
+      if (isGenerating) {
+        art.classList.add('loading');
+        art.innerHTML = '<div class="spinner" aria-hidden="true"></div><div>Generating...</div>';
+      } else {
+        art.textContent = 'Live output will appear here';
+      }
+
+      const meta = document.createElement('div');
+      meta.className = 'meta-row';
+      const dimMeta = getCurrentDimensionMeta();
+      meta.innerHTML = `<span>Seed ${seed}</span><span>${width}×${height}${dimMeta ? ` • ${dimMeta.label}` : ''}</span>`;
+
+      card.appendChild(art);
+      card.appendChild(meta);
+      return card;
+    }
+
+    function renderOutputs(images = []) {
+      const count = Number(outputCount.value || 1);
+      const { width, height } = currentDimension();
+      outputGrid.innerHTML = '';
+
+      if (images.length) {
+        images.forEach((img, index) => {
+          const card = document.createElement('div');
+          card.className = 'output-card';
+
+          const link = document.createElement('a');
+          link.className = 'output-link';
+          link.target = '_blank';
+          link.rel = 'noopener noreferrer';
+
+          const art = document.createElement('div');
+          art.className = 'output-art';
+          art.style.setProperty('--preview-ratio', String(getPreviewAspectRatio()));
+
+          if (img.imageURL) {
+            link.href = img.imageURL;
+            const imageEl = document.createElement('img');
+            imageEl.src = img.imageURL;
+            imageEl.alt = `Generated image ${index + 1}`;
+            art.appendChild(imageEl);
+            link.appendChild(art);
+            card.appendChild(link);
+          } else {
+            art.textContent = 'Image returned without a URL.';
+            card.appendChild(art);
+          }
+
+          const meta = document.createElement('div');
+          meta.className = 'meta-row';
+          const dimMeta = getCurrentDimensionMeta();
+          meta.innerHTML = `<span>${img.seed ? 'Seed ' + img.seed : 'Runware output'}</span><span>${width}×${height}${dimMeta ? ` • ${dimMeta.label}` : ''}</span>`;
+
+          card.appendChild(meta);
+          outputGrid.appendChild(card);
+        });
+        return;
+      }
+
+      for (let i = 0; i < count; i++) {
+        outputGrid.appendChild(buildPlaceholderCard(getSeedForIndex(i), width, height));
+      }
+    }
+
+    function randomizeSeed() {
+      seedInput.value = Math.floor(100000 + Math.random() * 899999);
+      renderDebug();
+      renderOutputs(lastGeneratedImages);
+      pushStatus('Seed randomized.');
+    }
+
+    function toggleSeedReuse() {
+      reuseSeed = !reuseSeed;
+      seedToggle.classList.toggle('off', !reuseSeed);
+      seedToggle.setAttribute('aria-pressed', String(reuseSeed));
+      pushStatus(
+        reuseSeed
+          ? 'Seed reuse is on. All requested outputs will use the same seed.'
+          : 'Seed reuse is off. Each requested output will increment the seed by 1.'
+      );
+      renderDebug();
+      renderOutputs(lastGeneratedImages);
+    }
+
+    function setMode(newMode) {
+      mode = newMode;
+      const isReference = mode === 'reference';
+      referencePanel.classList.toggle('hidden', !isReference);
+      variationLabel.innerHTML = isReference ? 'Reference continuity notes <span class="info-tip" data-tooltip="Use this field to explain what should stay consistent when reference images are involved, such as preserving facial identity, age, costumes, or historical tone." role="button" tabindex="0" aria-label="Show help">i</span>' : 'Scene continuity notes <span class="info-tip" data-tooltip="Use this field to explain what should stay consistent between images, such as the same person, costumes, and historical tone." role="button" tabindex="0" aria-label="Show help">i</span>';
+
+      if (isReference && !variationNotes.value.trim()) {
+        variationNotes.value = 'Use the uploaded portrait as the identity anchor. Keep the same face, age, build, and costume logic while placing the person into a historically grounded Scottish scene.';
+      }
+
+      renderDebug();
+      renderOutputs(lastGeneratedImages);
+    }
+
+    function setActiveTab(tabName) {
+      activeTab = tabName;
+
+      tabPrompt.classList.toggle('active', tabName === 'prompt');
+      tabReference.classList.toggle('active', tabName === 'reference');
+      tabHistory.classList.toggle('active', tabName === 'history');
+
+      const isHistory = tabName === 'history';
+      controlView.classList.toggle('hidden', isHistory);
+      historyView.classList.toggle('active', isHistory);
+      outputPreviewPanel.classList.toggle('hidden', isHistory);
+
+      if (tabName === 'prompt') setMode('prompt');
+      if (tabName === 'reference') setMode('reference');
+      if (tabName === 'history') renderHistory();
+    }
+
+    function fillReferenceSlots(files) {
+      for (let i = 1; i <= 4; i++) {
+        const slot = document.getElementById('refSlot' + i);
+        slot.innerHTML = 'Reference ' + i;
+      }
+
+      files.slice(0, 4).forEach((file, index) => {
+        const slot = document.getElementById('refSlot' + (index + 1));
+        const reader = new FileReader();
+        reader.onload = e => {
+          slot.innerHTML = `<img alt="${file.name.replace(/"/g, '&quot;')}" src="${e.target.result}">`;
+        };
+        reader.readAsDataURL(file);
+      });
+    }
+
+    function fileToDataURL(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+    }
+
+    async function uploadReferenceImages(apiKey) {
+      if (!uploadedFiles.length) return [];
+
+      const uploadTasks = await Promise.all(uploadedFiles.map(async file => ({
+        taskType: 'imageUpload',
+        taskUUID: createUUID(),
+        image: await fileToDataURL(file)
+      })));
+
+      const response = await fetch(RUNWARE_API_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`
+        },
+        body: JSON.stringify(uploadTasks)
+      });
+
+      const json = await response.json();
+      if (!response.ok || json.error || json.errors) {
+        throw new Error(extractErrorMessage(json) || `Upload failed with status ${response.status}`);
+      }
+
+      const uploads = Array.isArray(json.data) ? json.data.filter(item => item.taskType === 'imageUpload') : [];
+      if (uploads.length !== uploadTasks.length) {
+        throw new Error('Runware did not return all uploaded image UUIDs.');
+      }
+
+      return uploads.map(item => item.imageUUID).filter(Boolean);
+    }
+
+    function extractErrorMessage(payload) {
+      if (!payload) return 'Unknown error';
+      if (typeof payload.error === 'string') return payload.error;
+      if (Array.isArray(payload.errors) && payload.errors.length) {
+        return payload.errors.map(err => err.message || err.code || 'Unknown error').join('; ');
+      }
+      return payload.message || '';
+    }
+
+    async function runInference(apiKey, referenceImageUUIDs = []) {
+      const inferenceTasks = getInferenceTasks(referenceImageUUIDs);
+
+      const response = await fetch(RUNWARE_API_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`
+        },
+        body: JSON.stringify(inferenceTasks)
+      });
+
+      const json = await response.json();
+      lastResponsePayload = json;
+
+      if (!response.ok || json.error || json.errors) {
+        throw new Error(extractErrorMessage(json) || `Generation failed with status ${response.status}`);
+      }
+
+      const images = Array.isArray(json.data)
+        ? json.data.filter(item => item.taskType === 'imageInference' && item.imageURL)
+        : [];
+
+      return { inferenceTasks, images, raw: json };
+    }
+
+    function addHistoryEntry(payload, images, referenceImageUUIDs = []) {
+      const dimMeta = getCurrentDimensionMeta();
+      generationHistory.unshift({
+        timestamp: getDateTimeStamp(),
+        mode,
+        model: modelSelect.value,
+        modelLabel: MODEL_DIMENSIONS[modelSelect.value].label,
+        tier: qualityTier.value.toUpperCase(),
+        dimensions: dimMeta ? dimMeta.dims : dimensionSelect.value,
+        aspectRatio: dimMeta ? dimMeta.label : '',
+        outputCount: Number(outputCount.value || 1),
+        reuseSeed,
+        baseSeed: Number(seedInput.value || 0),
+        prompt: characterConcept.value.trim(),
+        notes: variationNotes.value.trim(),
+        referenceCount: referenceImageUUIDs.length,
+        imageCount: images.length,
+        images: images.map((img, index) => ({
+          imageURL: img.imageURL || '',
+          seed: img.seed ?? getSeedForIndex(index),
+          taskUUID: img.taskUUID || ''
+        })),
+        payload
+      });
+      renderHistory();
+    }
+
+
+    function loadHistoryEntry(index) {
+      const entry = generationHistory[index];
+      if (!entry) return;
+
+      modelSelect.value = entry.model;
+      populateQualityTiers();
+      qualityTier.value = entry.tier.toLowerCase();
+      renderDimensionPicker();
+
+      const dimOption = Array.from(dimensionSelect.options).find(opt => {
+        return opt.textContent.includes(entry.dimensions);
+      });
+      if (dimOption) {
+        dimensionSelect.value = dimOption.value;
+        renderDimensionPicker();
+      }
+
+      outputCount.value = String(entry.outputCount);
+      characterConcept.value = entry.prompt || '';
+      variationNotes.value = entry.notes || '';
+      seedInput.value = String(entry.baseSeed || 0);
+      reuseSeed = !!entry.reuseSeed;
+      initializeSeedToggle();
+      updateCharacterCounter();
+
+      setActiveTab(entry.mode === 'reference' ? 'reference' : 'prompt');
+      renderDebug();
+      renderOutputs(lastGeneratedImages);
+      pushStatus(`Loaded Generation ${generationHistory.length - index} back into the controls.`);
+    }
+
+    function renderHistory() {
+      historyList.innerHTML = '';
+
+      if (!generationHistory.length) {
+        const empty = document.createElement('div');
+        empty.className = 'history-empty';
+        empty.textContent = 'No generations yet for this session.';
+        historyList.appendChild(empty);
+        return;
+      }
+
+      generationHistory.forEach((entry, index) => {
+        const card = document.createElement('div');
+        card.className = 'history-card';
+
+        const inner = document.createElement('div');
+        inner.className = 'history-card-inner';
+
+        const head = document.createElement('div');
+        head.className = 'section-head';
+        head.style.marginBottom = '10px';
+        head.innerHTML = `
+          <div>
+            <h3>Generation ${generationHistory.length - index}</h3>
+            <p>${entry.timestamp}</p>
+          </div>
+          <button class="small-btn" type="button" data-history-index="${index}">Regenerate</button>
+        `;
+
+        const layout = document.createElement('div');
+        layout.className = 'history-layout';
+
+        const gallery = document.createElement('div');
+        gallery.className = 'history-gallery';
+
+        const galleryTitle = document.createElement('div');
+        galleryTitle.className = 'field-label';
+        galleryTitle.textContent = 'Returned Images';
+        gallery.appendChild(galleryTitle);
+
+        if (entry.images.length) {
+          const imageGrid = document.createElement('div');
+          imageGrid.className = 'history-image-grid';
+
+          entry.images.forEach((img, imgIndex) => {
+            const link = document.createElement('a');
+            link.className = 'history-image-link';
+            link.href = img.imageURL;
+            link.target = '_blank';
+            link.rel = 'noopener noreferrer';
+
+            const frame = document.createElement('div');
+            frame.className = 'history-image';
+            frame.innerHTML = `<img src="${img.imageURL}" alt="Generation ${generationHistory.length - index} image ${imgIndex + 1}">`;
+
+            link.appendChild(frame);
+            imageGrid.appendChild(link);
+          });
+
+          gallery.appendChild(imageGrid);
+        } else {
+          const placeholder = document.createElement('div');
+          placeholder.className = 'history-placeholder';
+          placeholder.textContent = 'No image URLs were recorded for this generation.';
+          gallery.appendChild(placeholder);
+        }
+
+        const settings = document.createElement('div');
+        settings.innerHTML = `
+          <div class="history-settings">
+            <div class="history-setting">
+              <div class="history-setting-label">Mode</div>
+              <div class="history-setting-value">${entry.mode}</div>
+            </div>
+            <div class="history-setting">
+              <div class="history-setting-label">Model</div>
+              <div class="history-setting-value">${entry.modelLabel}</div>
+            </div>
+            <div class="history-setting">
+              <div class="history-setting-label">Resolution Tier</div>
+              <div class="history-setting-value">${entry.tier}</div>
+            </div>
+            <div class="history-setting">
+              <div class="history-setting-label">Dimensions</div>
+              <div class="history-setting-value">${entry.dimensions} (${entry.aspectRatio})</div>
+            </div>
+            <div class="history-setting">
+              <div class="history-setting-label">Outputs Requested</div>
+              <div class="history-setting-value">${entry.outputCount}</div>
+            </div>
+            <div class="history-setting">
+              <div class="history-setting-label">Returned Images</div>
+              <div class="history-setting-value">${entry.imageCount}</div>
+            </div>
+            <div class="history-setting">
+              <div class="history-setting-label">Reference Images</div>
+              <div class="history-setting-value">${entry.referenceCount}</div>
+            </div>
+            <div class="history-setting">
+              <div class="history-setting-label">Seed Mode</div>
+              <div class="history-setting-value">${entry.reuseSeed ? `Fixed seed (${entry.baseSeed})` : `Incrementing from ${entry.baseSeed}`}</div>
+            </div>
+          </div>
+        `;
+
+        const promptBlock = document.createElement('div');
+        promptBlock.className = 'history-text-block';
+        promptBlock.innerHTML = `
+          <div class="history-setting-label">Prompt Used</div>
+          <p>${entry.prompt || 'No prompt recorded.'}</p>
+        `;
+
+        const notesBlock = document.createElement('div');
+        notesBlock.className = 'history-text-block';
+        notesBlock.innerHTML = `
+          <div class="history-setting-label">Continuity Notes</div>
+          <p>${entry.notes || 'No notes recorded.'}</p>
+        `;
+
+        const links = document.createElement('div');
+        links.className = 'history-links';
+        links.innerHTML = `
+          <span style="color: var(--muted); font-size:.92rem;">This entry stores the exact request payload sent to Runware's API for this generation.</span>
+          <a href="https://runware.ai/docs/providers/bytedance" target="_blank" rel="noopener noreferrer">Open Runware ByteDance API Docs</a>
+        `;
+
+        const payloadHeader = document.createElement('div');
+        payloadHeader.className = 'history-links';
+        payloadHeader.style.margin = '16px 0 10px';
+
+        const payloadTitle = document.createElement('div');
+        payloadTitle.className = 'field-label';
+        payloadTitle.style.marginTop = '0';
+        payloadTitle.innerHTML = 'API Payload Used <span class="info-tip" data-tooltip="This is the exact request body sent to Runware\'s API for this generation. It is helpful when you want to inspect or recreate the call outside this demo." role="button" tabindex="0" aria-label="Show help">i</span>';
+
+        const payloadCopyBtn = document.createElement('button');
+        payloadCopyBtn.className = 'small-btn';
+        payloadCopyBtn.type = 'button';
+        payloadCopyBtn.textContent = 'Copy Payload';
+
+        const payloadPre = document.createElement('pre');
+        payloadPre.className = 'history-json';
+        payloadPre.textContent = JSON.stringify(entry.payload, null, 2);
+        payloadCopyBtn.addEventListener('click', () => copyText(payloadPre.textContent, payloadCopyBtn));
+
+        gallery.appendChild(links);
+        layout.appendChild(gallery);
+        layout.appendChild(settings);
+
+        inner.appendChild(head);
+        inner.appendChild(layout);
+        inner.appendChild(promptBlock);
+        payloadHeader.appendChild(payloadTitle);
+        payloadHeader.appendChild(payloadCopyBtn);
+
+        inner.appendChild(notesBlock);
+        inner.appendChild(payloadHeader);
+        inner.appendChild(payloadPre);
+        const regenerateBtn = head.querySelector('[data-history-index]');
+        if (regenerateBtn) {
+          regenerateBtn.addEventListener('click', () => loadHistoryEntry(index));
+        }
+
+        card.appendChild(inner);
+        historyList.appendChild(card);
+      });
+    }
+
+    function applyScenePreset(preset) {
+      characterConcept.value = preset.concept;
+      variationNotes.value = preset.notes;
+      updateCharacterCounter();
+      renderDebug();
+      pushStatus(`Applied scene preset: ${preset.label}.`);
+    }
+
+    function applyConsistencyPreset(preset) {
+      variationNotes.value = preset.notes;
+      renderDebug();
+      pushStatus(`Applied consistency preset: ${preset.label}.`);
+    }
+
+    function renderPresetButtons() {
+      scenePresetButtons.innerHTML = '';
+      consistencyPresetButtons.innerHTML = '';
+
+      SCENE_PRESETS.forEach(preset => {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'preset-btn';
+        button.textContent = preset.label;
+        button.addEventListener('click', () => applyScenePreset(preset));
+        scenePresetButtons.appendChild(button);
+      });
+
+      CONSISTENCY_PRESETS.forEach(preset => {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'preset-btn';
+        button.textContent = preset.label;
+        button.addEventListener('click', () => applyConsistencyPreset(preset));
+        consistencyPresetButtons.appendChild(button);
+      });
+    }
+
+    async function generateCharacter() {
+      const apiKey = RUNWARE_API_KEY;
+
+      if (!characterConcept.value.trim()) {
+        pushStatus('Prompt cannot be empty.', 'error');
+        return;
+      }
+
+      if (characterConcept.value.length > 2000) {
+        pushStatus('Prompt is over the 2000 character limit.', 'error');
+        return;
+      }
+
+      if (mode === 'reference' && uploadedFiles.length === 0) {
+        pushStatus('Reference mode needs at least one uploaded image.', 'error');
+        return;
+      }
+
+      clearStatusLog();
+      pushStatus('Generation started.');
+      generateBtn.textContent = 'Generating...';
+      generateBtn.disabled = true;
+      generateBtn.style.opacity = '0.7';
+      isGenerating = true;
+      lastGeneratedImages = [];
+      renderOutputs([]);
+
+      try {
+        let referenceImageUUIDs = [];
+
+        if (mode === 'reference') {
+          pushStatus('Uploading reference images to Runware...');
+          referenceImageUUIDs = await uploadReferenceImages(apiKey);
+          pushStatus(`Uploaded ${referenceImageUUIDs.length} reference image${referenceImageUUIDs.length === 1 ? '' : 's'}.`);
+        }
+
+        pushStatus('Sending inference request to Runware...');
+        const { inferenceTasks, images, raw } = await runInference(apiKey, referenceImageUUIDs);
+        lastResponsePayload = raw;
+        lastGeneratedImages = images;
+
+        const completedPayload = [
+          ...(referenceImageUUIDs.length
+            ? referenceImageUUIDs.map((uuid, index) => ({
+                taskType: 'imageUpload',
+                taskUUID: `completed-upload-${index + 1}`,
+                imageUUID: uuid
+              }))
+            : []),
+          ...inferenceTasks
+        ];
+
+        requestBox.textContent = sanitizePayload(completedPayload);
+        responseBox.textContent = sanitizePayload(raw);
+
+        if (!images.length) {
+          isGenerating = false;
+          renderOutputs([]);
+          pushStatus('Runware responded, but no image URLs came back in the response.', 'error');
+          return;
+        }
+
+        isGenerating = false;
+        renderOutputs(images);
+        addHistoryEntry(completedPayload, images, referenceImageUUIDs);
+        pushStatus(`Done. Received ${images.length} image${images.length === 1 ? '' : 's'} from ${MODEL_DIMENSIONS[modelSelect.value].label}.`, 'success');
+      } catch (error) {
+        isGenerating = false;
+        lastGeneratedImages = [];
+        renderOutputs([]);
+        responseBox.textContent = sanitizePayload({ error: error.message || 'Unknown error' });
+        pushStatus(`Generation failed: ${error.message || 'Unknown error'}`, 'error');
+      } finally {
+        generateBtn.textContent = 'Generate Scene';
+        generateBtn.disabled = false;
+        generateBtn.style.opacity = '';
+        isGenerating = false;
+      }
+    }
+
+    function downloadMetadataFile() {
+      const data = {
+        mode,
+        reuseSeed,
+        model: modelSelect.value,
+        tier: qualityTier.value,
+        dimensions: dimensionSelect.value,
+        promptLength: characterConcept.value.length,
+        payloadPreview: getSanitizedRequestPreview(),
+        lastResponsePayload,
+        generationHistory
+      };
+
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'tuath-runware-prototype-metadata.json';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    }
+
+    async function copyText(text, button) {
+      const originalText = button.textContent;
+      try {
+        await navigator.clipboard.writeText(text);
+        button.textContent = 'Copied';
+      } catch (error) {
+        button.textContent = 'Failed';
+      }
+      setTimeout(() => {
+        button.textContent = originalText;
+      }, 1200);
+    }
+
+    function getStatusLogText() {
+      if (!statusLog) return '';
+      const entries = Array.from(statusLog.querySelectorAll('.status-entry'));
+      return entries.map(entry => {
+        const timestamp = entry.querySelector('.status-timestamp')?.textContent || '';
+        const message = entry.lastChild?.textContent || '';
+        return `${timestamp} ${message}`.trim();
+      }).join('\n');
+    }
+
+    tabPrompt.addEventListener('click', () => setActiveTab('prompt'));
+    tabReference.addEventListener('click', () => setActiveTab('reference'));
+    tabHistory.addEventListener('click', () => setActiveTab('history'));
+    randomSeed.addEventListener('click', randomizeSeed);
+    generateBtn.addEventListener('click', generateCharacter);
+    seedToggle.addEventListener('click', toggleSeedReuse);
+    uploadButton.addEventListener('click', () => referenceUpload.click());
+    downloadMeta.addEventListener('click', downloadMetadataFile);
+    if (copyStatusBtn) copyStatusBtn.addEventListener('click', () => copyText(getStatusLogText(), copyStatusBtn));
+    if (clearStatusBtn) clearStatusBtn.addEventListener('click', clearStatusLog);
+    copyRequestBtn.addEventListener('click', () => copyText(requestBox.textContent || '', copyRequestBtn));
+    copyResponseBtn.addEventListener('click', () => copyText(responseBox.textContent || '', copyResponseBtn));
+
+    [modelSelect, outputCount, qualityTier, variationNotes, seedInput].forEach(el => {
+      el.addEventListener('input', () => {
+        renderDebug();
+        renderOutputs(lastGeneratedImages);
+      });
+      el.addEventListener('change', () => {
+        renderDebug();
+        renderOutputs(lastGeneratedImages);
+      });
+    });
+
+    modelSelect.addEventListener('change', () => {
+      populateQualityTiers();
+      renderDimensionPicker();
+      renderDebug();
+      renderOutputs(lastGeneratedImages);
+    });
+
+    qualityTier.addEventListener('change', () => {
+      renderDimensionPicker();
+      renderDebug();
+      renderOutputs(lastGeneratedImages);
+    });
+
+    characterConcept.addEventListener('input', () => {
+      updateCharacterCounter();
+      renderDebug();
+    });
+
+    referenceUpload.addEventListener('change', (event) => {
+      uploadedFiles = Array.from(event.target.files || []).slice(0, 4);
+      fillReferenceSlots(uploadedFiles);
+      pushStatus(
+        uploadedFiles.length
+          ? `Loaded ${uploadedFiles.length} reference image${uploadedFiles.length === 1 ? '' : 's'} locally. They will upload on generate.`
+          : 'No reference images loaded.'
+      );
+      renderDebug();
+    });
+
+    function initializeSeedToggle() {
+      seedToggle.classList.toggle('off', !reuseSeed);
+      seedToggle.setAttribute('aria-pressed', String(reuseSeed));
+    }
+
+    renderPresetButtons();
+    populateQualityTiers();
+    renderDimensionPicker();
+    updateCharacterCounter();
+    initializeSeedToggle();
+    setActiveTab('prompt');
+    renderDebug();
+    renderOutputs();
+
+    const globalTooltip = document.createElement('div');
+    globalTooltip.className = 'global-tooltip';
+    document.body.appendChild(globalTooltip);
+
+    function positionGlobalTooltip(target) {
+      const text = target.getAttribute('data-tooltip') || '';
+      if (!text) return;
+
+      globalTooltip.textContent = text;
+      globalTooltip.classList.add('visible');
+
+      const rect = target.getBoundingClientRect();
+      const tipRect = globalTooltip.getBoundingClientRect();
+
+      let left = rect.left + (rect.width / 2) - (tipRect.width / 2);
+      let top = rect.top - tipRect.height - 10;
+
+      const minPad = 8;
+      if (left < minPad) left = minPad;
+      if (left + tipRect.width > window.innerWidth - minPad) {
+        left = window.innerWidth - tipRect.width - minPad;
+      }
+
+      if (top < minPad) {
+        top = rect.bottom + 10;
+      }
+
+      globalTooltip.style.left = `${left}px`;
+      globalTooltip.style.top = `${top}px`;
+    }
+
+    function hideGlobalTooltip() {
+      globalTooltip.classList.remove('visible');
+    }
+
+    document.addEventListener('mouseover', (event) => {
+      const target = event.target.closest('.info-tip[data-tooltip]');
+      if (!target) return;
+      positionGlobalTooltip(target);
+    });
+
+    document.addEventListener('mousemove', (event) => {
+      const target = event.target.closest('.info-tip[data-tooltip]');
+      if (!target || !globalTooltip.classList.contains('visible')) return;
+      positionGlobalTooltip(target);
+    });
+
+    document.addEventListener('mouseout', (event) => {
+      const fromTip = event.target.closest('.info-tip[data-tooltip]');
+      if (!fromTip) return;
+      const to = event.relatedTarget && event.relatedTarget.closest && event.relatedTarget.closest('.info-tip[data-tooltip]');
+      if (to === fromTip) return;
+      hideGlobalTooltip();
+    });
+
+    document.addEventListener('focusin', (event) => {
+      const target = event.target.closest('.info-tip[data-tooltip]');
+      if (!target) return;
+      positionGlobalTooltip(target);
+    });
+
+    document.addEventListener('focusout', (event) => {
+      const target = event.target.closest('.info-tip[data-tooltip]');
+      if (!target) return;
+      hideGlobalTooltip();
+    });
+
+    window.addEventListener('scroll', hideGlobalTooltip, true);
+    window.addEventListener('resize', hideGlobalTooltip);
+
+
+    renderHistory();
+    pushStatus('Ready...');
+  </script>
+</body>
+</html>
