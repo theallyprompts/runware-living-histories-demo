@@ -148,7 +148,7 @@ This is a lightweight demo intended for educational purposes, not production use
 
     .toolbar{
       display:grid;
-      grid-template-columns: repeat(3,1fr);
+      grid-template-columns: repeat(4,1fr);
       gap:12px;
       margin-bottom:18px;
     }
@@ -1036,11 +1036,140 @@ This is a lightweight demo intended for educational purposes, not production use
       line-height:1.7;
     }
 
+
+
+    .layout.api-code-expanded{
+      grid-template-columns: 1fr;
+    }
+
+    .layout.api-code-expanded .side-stack{
+      display:none;
+    }
+
+    .api-code-view{
+      display:none;
+    }
+
+    .api-code-view.active{
+      display:block;
+    }
+
+    .api-code-stack{
+      display:grid;
+      gap:18px;
+      margin-top:18px;
+    }
+
+    .api-code-card{
+      border:1px solid rgba(17,17,23,0.1);
+      border-radius:24px;
+      background: rgba(255,255,255,0.56);
+      overflow:hidden;
+    }
+
+    .api-code-card-inner{
+      padding:18px;
+    }
+
+    .api-code-intro{
+      border:1px solid rgba(17,17,23,0.08);
+      border-radius:18px;
+      background: rgba(255,255,255,0.52);
+      padding:14px 16px;
+      color:var(--muted);
+      line-height:1.7;
+      font-size:.95rem;
+    }
+
+    .api-code-grid{
+      display:grid;
+      grid-template-columns: minmax(0, 1.2fr) minmax(280px, .8fr);
+      gap:16px;
+      align-items:start;
+      margin-top:16px;
+    }
+
+    .api-code-note-list{
+      display:grid;
+      gap:10px;
+    }
+
+    .api-code-note{
+      border:1px solid rgba(17,17,23,0.08);
+      border-radius:16px;
+      background: rgba(255,255,255,0.54);
+      padding:12px 14px;
+    }
+
+    .api-code-note strong{
+      display:block;
+      font-size:.92rem;
+      margin-bottom:4px;
+      color:var(--text);
+    }
+
+    .api-code-note p{
+      margin:0;
+      color:var(--muted);
+      line-height:1.6;
+      font-size:.92rem;
+    }
+
+    .api-code-pre{
+      margin:0;
+      max-height:none;
+      background: rgba(17,17,23,0.94);
+      color:rgba(255,255,255,0.9);
+    }
+
+    .api-mini-head{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      margin-bottom:12px;
+      flex-wrap:wrap;
+    }
+
+    .api-mini-head h3{
+      margin:0;
+      font-size:1rem;
+      font-weight:650;
+      letter-spacing:-.02em;
+    }
+
+    .api-chip-row{
+      display:flex;
+      gap:8px;
+      flex-wrap:wrap;
+    }
+
+    .api-soft-chip{
+      display:inline-flex;
+      align-items:center;
+      border:1px solid rgba(17,17,23,0.1);
+      background: rgba(255,255,255,0.6);
+      border-radius:999px;
+      padding:7px 10px;
+      font-size:10px;
+      text-transform:uppercase;
+      letter-spacing:.18em;
+      color:var(--muted);
+    }
+
+    .api-example-footer{
+      margin-top:12px;
+      color:var(--muted);
+      line-height:1.65;
+      font-size:.92rem;
+    }
+
     .hidden{ display:none !important; }
 
     @media (max-width: 1080px){
       .layout{ grid-template-columns: 1fr; }
-      .history-layout{ grid-template-columns: 1fr; }
+      .history-layout,
+      .api-code-grid{ grid-template-columns: 1fr; }
       .side-stack{
         position:static;
       }
@@ -1127,13 +1256,14 @@ This is a lightweight demo intended for educational purposes, not production use
       </p>
     </section>
 
-    <div class="layout">
+    <div class="layout" id="mainLayout">
       <main>
         <div class="panel panel-inner">
           <div class="toolbar">
             <button class="tab active" id="tabPrompt" type="button">Prompt Mode</button>
             <button class="tab" id="tabReference" type="button">Reference Mode</button>
             <button class="tab" id="tabHistory" type="button">API Call Detail</button>
+            <button class="tab" id="tabApiCode" type="button">API Code</button>
           </div>
 
           <div id="controlView" class="control-view">
@@ -1176,7 +1306,7 @@ This is a lightweight demo intended for educational purposes, not production use
 
               <label class="field full">
                 <span class="field-label">Historical scene or character brief <span class="info-tip" data-tooltip="This is the main prompt. Describe the scene, subject, mood, materials, and anything important you want the image output to include." role="button" tabindex="0" aria-label="Show help">i</span></span>
-                <textarea id="characterConcept" maxlength="2000">A gathering at a stone circle on a windswept moor in ancient Scotland, tall standing stones, robed figures in simple woven wool and linen garments standing solemnly, human ritual, offerings of grain and carved wooden bowls placed at the base of the stones, low clouds racing overhead, golden evening light breaking through, peat ground underfoot, distant hills fading into mist, historically grounded, realistic textures, cinematic composition, high detail, natural lighting</textarea>
+                <textarea id="characterConcept" maxlength="2000">A beautiful medieval woman wearing a simple linen gown and fur cloak, behind her a gathering at a stone circle in a forest clearing in ancient Scotland, tall standing stones, trees, ferns in foreground, robed figures in simple woven wool and linen garments standing solemnly, human ritual, offerings of grain and carved wooden bowls placed at the base of the stones, golden evening light breaking through the trees, distant hills fading into mist, historically grounded, realistic textures, cinematic composition, high detail, natural lighting</textarea>
                 <div class="textarea-meta">
                   <span></span>
                   <span class="char-counter" id="charCounter">0 / 2000</span>
@@ -1257,11 +1387,116 @@ This is a lightweight demo intended for educational purposes, not production use
             </div>
             <div id="historyList" class="history-list"></div>
           </div>
+
+          <div id="apiCodeView" class="api-code-view">
+            <div class="section-head">
+              <div>
+                <h2>API Code</h2>
+                <p>This page leaves out the extra app logic and focuses on the bare minimum. Think of it as: what do I actually send to Runware, and what comes back?</p>
+              </div>
+            </div>
+
+            <div class="api-code-stack">
+              <div class="api-code-card">
+                <div class="api-code-card-inner">
+                  <div class="api-mini-head">
+                    <h3>1. Minimal JavaScript example: prompt-only generation</h3>
+                    <div class="api-chip-row">
+                      <span class="api-soft-chip">fetch</span>
+                      <span class="api-soft-chip">imageInference</span>
+                    </div>
+                  </div>
+                  <div class="api-code-grid">
+                    <pre class="api-code-pre" id="apiCodePromptExample"></pre>
+                    <div class="api-code-note-list">
+                      <div class="api-code-note">
+                        <strong>Your API key goes in the headers</strong>
+                        <p>When JavaScript sends a request, it includes some extra information called headers. One of those headers carries your Runware API key so the platform knows the request is yours.</p>
+                      </div>
+                      <div class="api-code-note">
+                        <strong>The body is the actual instruction</strong>
+                        <p>The body is the part where you say what you want Runware to do. Here, we are sending one instruction: generate an image.</p>
+                      </div>
+                      <div class="api-code-note">
+                        <strong>These fields control the result</strong>
+                        <p>The model chooses which image model to use. The prompt describes the scene. Width and height set the size. The seed helps you repeat or slightly vary the result later. </p>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="api-example-footer">
+                    This is the simplest possible version of a text-to-image request in JavaScript.
+                  </div>
+                </div>
+              </div>
+
+              <div class="api-code-card">
+                <div class="api-code-card-inner">
+                  <div class="api-mini-head">
+                    <h3>2. Minimal JavaScript example: upload references, then generate</h3>
+                    <div class="api-chip-row">
+                      <span class="api-soft-chip">imageUpload</span>
+                      <span class="api-soft-chip">referenceImages</span>
+                    </div>
+                  </div>
+                  <div class="api-code-grid">
+                    <pre class="api-code-pre" id="apiCodeReferenceExample"></pre>
+                    <div class="api-code-note-list">
+                      <div class="api-code-note">
+                        <strong>First, upload the image you want to reuse</strong>
+                        <p>If you want Runware to keep referring back to a face or another source image, you upload that image first. Runware then gives you back an ID for it.</p>
+                      </div>
+                      <div class="api-code-note">
+                        <strong>Then, use that returned ID in the next request</strong>
+                        <p>You place that returned image ID inside <code>referenceImages</code>. That tells Runware to use the uploaded image as a visual guide during generation.</p>
+                      </div>
+                      <div class="api-code-note">
+                        <strong>Why this is a two-step flow</strong>
+                        <p>You do not keep re-sending the same image every time. You upload it once, get its ID back, and then reference it in later generation requests.</p>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="api-example-footer">
+                    This is the basic pattern behind keeping a character or subject consistent across generations.
+                  </div>
+                </div>
+              </div>
+
+              <div class="api-code-card">
+                <div class="api-code-card-inner">
+                  <div class="api-mini-head">
+                    <h3>3. Example response shape</h3>
+                    <div class="api-chip-row">
+                      <span class="api-soft-chip">response</span>
+                      <span class="api-soft-chip">imageURL</span>
+                    </div>
+                  </div>
+                  <div class="api-code-grid">
+                    <pre class="api-code-pre" id="apiCodeResponseExample"></pre>
+                    <div class="api-code-note-list">
+                      <div class="api-code-note">
+                        <strong>The response gives you an image URL</strong>
+                        <p>If the request works, Runware returns a URL for the finished image. That is what the app uses to show the result on screen.</p>
+                      </div>
+                      <div class="api-code-note">
+                        <strong>You may also get extra details back</strong>
+                        <p>The response can include things like the task ID and seed. Those are useful if you want to log results or recreate them later.</p>
+                      </div>
+                      <div class="api-code-note">
+                        <strong>The app is just wrapping this flow</strong>
+                        <p>Everything in the interface eventually turns into a request like this and then reads back a response like this.</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
         </div>
 
       </main>
 
-      <aside class="side-stack">
+      <aside class="side-stack" id="sideStack">
         <div class="panel panel-inner preview-panel" id="outputPreviewPanel">
           <div class="section-head">
             <div>
@@ -1357,12 +1592,12 @@ This is a lightweight demo intended for educational purposes, not production use
       },
       {
         label: 'Iron Age Hillfort Life (c. 500 BCE)',
-        concept: 'A fortified hilltop settlement in Iron Age Scotland, wooden palisade walls encircling roundhouses, warriors and villagers moving through daily life, shields made of wood and leather, spears stacked near an entrance gate, women weaving on upright looms inside a dimly lit roundhouse, smoke filtering through a thatched roof, rugged terrain stretching into the distance, windswept grass, overcast sky, grounded historical detail, cinematic realism',
+        concept: 'A fortified hilltop settlement in Iron Age Scotland, wooden palisade walls encircling roundhouses, warriors and villagers moving through daily life, shields made of wood and leather, spears stacked near an entrance gate, smoke filtering through a thatched roof, rugged terrain stretching into the distance, windswept grass, overcast sky, grounded historical detail, cinematic realism',
         notes: 'Keep scale impressive but believable. Focus on stonework, clothing texture, and environmental realism.'
       },
       {
-        label: 'Pictish Carving Scene (c. 700 CE)',
-        concept: 'A Pictish stone carver at work beside a partially completed standing stone, intricate symbols being carefully chiseled into the surface, the craftsman wearing a wool tunic and cloak fastened with a simple brooch, iron tools laid nearby, a small settlement and grazing land in the background, cool northern light, lichen-covered stones, hyper-detailed textures, historically accurate setting, shallow depth of field',
+        label: 'Neolithic Stone Worship (c. 700 CE)',
+        concept: 'A head and shoulders shot of a beautiful medieval woman wearing a simple linen gown and fur cloak, behind her a gathering at a stone circle in a forest clearing in ancient Scotland, tall standing stones, trees, ferns in foreground, robed figures in simple woven wool and linen garments standing solemnly, human ritual, offerings of grain and carved wooden bowls placed at the base of the stones, golden evening light breaking through the trees, distant hills fading into mist, historically grounded, realistic textures, cinematic composition, high detail, natural lighting',
         notes: ''
       },
       {
@@ -1399,8 +1634,12 @@ This is a lightweight demo intended for educational purposes, not production use
     const tabPrompt = document.getElementById('tabPrompt');
     const tabReference = document.getElementById('tabReference');
     const tabHistory = document.getElementById('tabHistory');
+    const tabApiCode = document.getElementById('tabApiCode');
+    const mainLayout = document.getElementById('mainLayout');
+    const sideStack = document.getElementById('sideStack');
     const controlView = document.getElementById('controlView');
     const historyView = document.getElementById('historyView');
+    const apiCodeView = document.getElementById('apiCodeView');
     const historyList = document.getElementById('historyList');
     const referencePanel = document.getElementById('referencePanel');
     const variationLabel = document.getElementById('variationLabel');
@@ -1430,6 +1669,9 @@ This is a lightweight demo intended for educational purposes, not production use
     const copyResponseBtn = document.getElementById('copyResponseBtn');
     const scenePresetButtons = document.getElementById('scenePresetButtons');
     const consistencyPresetButtons = document.getElementById('consistencyPresetButtons');
+    const apiCodePromptExample = document.getElementById('apiCodePromptExample');
+    const apiCodeReferenceExample = document.getElementById('apiCodeReferenceExample');
+    const apiCodeResponseExample = document.getElementById('apiCodeResponseExample');
 
     let mode = 'prompt';
     let activeTab = 'prompt';
@@ -1798,15 +2040,20 @@ This is a lightweight demo intended for educational purposes, not production use
       tabPrompt.classList.toggle('active', tabName === 'prompt');
       tabReference.classList.toggle('active', tabName === 'reference');
       tabHistory.classList.toggle('active', tabName === 'history');
+      tabApiCode.classList.toggle('active', tabName === 'api-code');
 
       const isHistory = tabName === 'history';
-      controlView.classList.toggle('hidden', isHistory);
+      const isApiCode = tabName === 'api-code';
+      controlView.classList.toggle('hidden', isHistory || isApiCode);
       historyView.classList.toggle('active', isHistory);
-      outputPreviewPanel.classList.toggle('hidden', isHistory);
+      apiCodeView.classList.toggle('active', isApiCode);
+      outputPreviewPanel.classList.toggle('hidden', isHistory || isApiCode);
+      if (mainLayout) mainLayout.classList.toggle('api-code-expanded', isApiCode);
 
       if (tabName === 'prompt') setMode('prompt');
       if (tabName === 'reference') setMode('reference');
       if (tabName === 'history') renderHistory();
+      if (tabName === 'api-code') renderApiCodeExamples();
     }
 
     function fillReferenceSlots(files) {
@@ -2164,6 +2411,91 @@ This is a lightweight demo intended for educational purposes, not production use
       });
     }
 
+
+    function renderApiCodeExamples() {
+      if (apiCodePromptExample) {
+        apiCodePromptExample.textContent = `const response = await fetch('https://api.runware.ai/v1', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'Authorization': \`Bearer ${RUNWARE_API_KEY}\`
+  },
+  body: JSON.stringify([
+    {
+      taskType: 'imageInference',
+      taskUUID: crypto.randomUUID(),
+      model: 'bytedance:seedream@4.5',
+      positivePrompt: 'Historically grounded Pictish stone carver at work in early medieval Scotland',
+      width: 1728,
+      height: 2304,
+      seed: 123456
+    }
+  ])
+});
+
+const json = await response.json();
+const imageUrl = json.data?.[0]?.imageURL;`;
+      }
+
+      if (apiCodeReferenceExample) {
+        apiCodeReferenceExample.textContent = `// Step 1: upload a portrait or other reference image
+const uploadResponse = await fetch('https://api.runware.ai/v1', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'Authorization': \`Bearer ${RUNWARE_API_KEY}\`
+  },
+  body: JSON.stringify([
+    {
+      taskType: 'imageUpload',
+      taskUUID: crypto.randomUUID(),
+      image: 'data:image/jpeg;base64,...'
+    }
+  ])
+});
+
+const uploadJson = await uploadResponse.json();
+const imageUUID = uploadJson.data?.[0]?.imageUUID;
+
+// Step 2: use that uploaded asset in a generation request
+const inferenceResponse = await fetch('https://api.runware.ai/v1', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'Authorization': \`Bearer ${RUNWARE_API_KEY}\`
+  },
+  body: JSON.stringify([
+    {
+      taskType: 'imageInference',
+      taskUUID: crypto.randomUUID(),
+      model: 'bytedance:seedream@4.5',
+      positivePrompt: 'The same visitor, reimagined in a historically grounded Scottish scene',
+      width: 1728,
+      height: 2304,
+      seed: 123456,
+      referenceImages: [imageUUID]
+    }
+  ])
+});
+
+const inferenceJson = await inferenceResponse.json();
+const imageUrl = inferenceJson.data?.[0]?.imageURL;`;
+      }
+
+      if (apiCodeResponseExample) {
+        apiCodeResponseExample.textContent = `{
+  "data": [
+    {
+      "taskType": "imageInference",
+      "taskUUID": "2f7b9c2c-4a6f-4e6c-9a55-2c0d0f6f9d1c",
+      "imageURL": "https://im.runware.ai/image/ws/...",
+      "seed": 123456
+    }
+  ]
+}`;
+      }
+    }
+
     async function generateCharacter() {
       const apiKey = RUNWARE_API_KEY;
 
@@ -2294,6 +2626,7 @@ This is a lightweight demo intended for educational purposes, not production use
     tabPrompt.addEventListener('click', () => setActiveTab('prompt'));
     tabReference.addEventListener('click', () => setActiveTab('reference'));
     tabHistory.addEventListener('click', () => setActiveTab('history'));
+    tabApiCode.addEventListener('click', () => setActiveTab('api-code'));
     randomSeed.addEventListener('click', randomizeSeed);
     generateBtn.addEventListener('click', generateCharacter);
     seedToggle.addEventListener('click', toggleSeedReuse);
@@ -2354,6 +2687,7 @@ This is a lightweight demo intended for educational purposes, not production use
     renderDimensionPicker();
     updateCharacterCounter();
     initializeSeedToggle();
+    renderApiCodeExamples();
     setActiveTab('prompt');
     renderDebug();
     renderOutputs();
