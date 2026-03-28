@@ -19,7 +19,7 @@ It includes:
 
 ---
 
-## 🛠️ How It Works
+## How It Works
 
 The app uses Runware’s `imageInference` task to generate images.
 
@@ -38,7 +38,7 @@ Upload an image (e.g. a visitor portrait) and:
 
 ---
 
-## ⚙️ Run Locally
+## Run Locally
 
 This is a single-file demo.
 
@@ -48,3 +48,37 @@ This is a single-file demo.
 
 ```js
 const RUNWARE_API_KEY = "YOUR_RUNWARE_API_KEY_HERE";
+```
+---
+
+## Key Implementation Details
+
+- Uses Seedream 4.5 / 5.0 Lite models  
+- Supports multiple aspect ratios and resolutions  
+- Seed control for reproducibility  
+- Reference images are uploaded before inference  
+- API requests are exposed in the UI for transparency  
+
+---
+
+## Why This Approach
+
+This demo is intentionally simple:
+
+- No backend  
+- No frameworks  
+- No persistence layer
+- Single file layout 
+
+The goal is to make the Runware API:
+
+- Easy to understand  
+- Easy to experiment with   
+
+---
+
+## Limitations
+
+- Historical accuracy depends on prompt quality  
+- No session persistence or storage  
+- Not production-ready 
